@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Motor de Busca — Algoritmos Avançados</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #16161a;
+      --surface2: #1e1e24;
+      --border: #2a2a35;
+      --accent: #7c6af7;
+      --accent2: #4ecca3;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --danger: #f56565;
+      --mono: 'Space Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    /* Grid de fundo */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      opacity: 0.3;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .wrapper {
+      position: relative;
+      z-index: 1;
+      max-width: 780px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      margin-bottom: 2.5rem;
+      border-left: 3px solid var(--accent);
+      padding-left: 1rem;
+    }
+    header .tag {
+      font-family: var(--mono);
+      font-size: 0.7rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.15em;
+      margin-bottom: 0.4rem;
+    }
+    header h1 {
+      font-family: var(--mono);
+      font-size: clamp(1.4rem, 4vw, 2rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    header p {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-top: 0.4rem;
+    }
+
+    /* Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+    .card-title {
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .card-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* Upload zone */
+    .upload-zone {
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      padding: 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.dragover {
+      border-color: var(--accent);
+      background: rgba(124, 106, 247, 0.05);
+    }
+    .upload-zone.has-file {
+      border-color: var(--accent2);
+      border-style: solid;
+    }
+    .upload-zone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+      width: 100%;
+      height: 100%;
+    }
+    .upload-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+    .upload-zone p {
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+    .upload-zone .file-name {
+      color: var(--accent2);
+      font-family: var(--mono);
+      font-size: 0.8rem;
+      margin-top: 0.5rem;
+    }
+
+    /* Form fields */
+    label {
+      display: block;
+      font-size: 0.82rem;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+    input[type="text"], select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      padding: 0.65rem 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: var(--accent);
+    }
+    select option { background: var(--surface2); }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+    @media (max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
+
+    /* Button */
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      width: 100%;
+      padding: 0.85rem;
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-family: var(--mono);
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+      transition: opacity 0.2s, transform 0.1s;
+      margin-top: 0.25rem;
+    }
+    .btn:hover { opacity: 0.88; }
+    .btn:active { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: none;
+    }
+    .btn.loading .spinner { display: block; }
+    .btn.loading .btn-text { opacity: 0.6; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Results */
+    #results { display: none; }
+
+    .result-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.75rem;
+      margin-bottom: 1.25rem;
+    }
+    @media (max-width: 480px) { .result-grid { grid-template-columns: repeat(2, 1fr); } }
+
+    .stat-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+    }
+    .stat-box .stat-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.25rem;
+    }
+    .stat-box .stat-value {
+      font-family: var(--mono);
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .stat-box.found-yes .stat-value { color: var(--accent2); }
+    .stat-box.found-no .stat-value { color: var(--danger); }
+
+    .positions-block {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+    }
+    .positions-block .pos-label {
+      font-size: 0.72rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 0.6rem;
+    }
+    .positions-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      max-height: 120px;
+      overflow-y: auto;
+    }
+    .pos-badge {
+      background: rgba(124,106,247,0.12);
+      border: 1px solid rgba(124,106,247,0.3);
+      color: var(--accent);
+      font-family: var(--mono);
+      font-size: 0.72rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+    }
+    .truncated-note {
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+      font-style: italic;
+    }
+
+    /* Error */
+    .error-box {
+      background: rgba(245, 101, 101, 0.08);
+      border: 1px solid rgba(245, 101, 101, 0.3);
+      border-radius: 8px;
+      padding: 0.9rem 1rem;
+      color: var(--danger);
+      font-size: 0.85rem;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <header>
+    <div class="tag">Algoritmos Avançados — Prof. Diogo Winck</div>
+    <h1>Motor de Busca</h1>
+    <p>Substring search com Força Bruta e Rabin-Karp · Strategy Pattern</p>
+  </header>
+
+  <!-- Upload -->
+  <div class="card">
+    <div class="card-title">01 · Documento</div>
+    <div class="upload-zone" id="uploadZone">
+      <input type="file" id="fileInput" accept=".txt" />
+      <div class="upload-icon">📄</div>
+      <p>Clique ou arraste um arquivo <strong>.txt</strong> aqui</p>
+      <div class="file-name" id="fileName"></div>
+    </div>
+  </div>
+
+  <!-- Busca -->
+  <div class="card">
+    <div class="card-title">02 · Busca</div>
+    <div class="form-row" style="margin-bottom:1rem">
+      <div>
+        <label for="patternInput">Termo ou trecho a pesquisar</label>
+        <input type="text" id="patternInput" placeholder="ex: liberdade" />
+      </div>
+      <div>
+        <label for="algorithmSelect">Algoritmo</label>
+        <select id="algorithmSelect">
+          {% for algo in algorithms %}
+          <option value="{{ algo.key }}">{{ algo.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+    <div class="error-box" id="errorBox"></div>
+    <button class="btn" id="searchBtn" onclick="doSearch()">
+      <div class="spinner"></div>
+      <span class="btn-text">🔍 Pesquisar</span>
+    </button>
+  </div>
+
+  <!-- Resultados -->
+  <div class="card" id="results">
+    <div class="card-title">03 · Resultados</div>
+    <div class="result-grid">
+      <div class="stat-box" id="statFound">
+        <div class="stat-label">Encontrado</div>
+        <div class="stat-value" id="valFound">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Ocorrências</div>
+        <div class="stat-value" id="valOcc">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Tempo (ms)</div>
+        <div class="stat-value" id="valTime">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">Algoritmo</div>
+        <div class="stat-value" id="valAlgo" style="font-size:0.78rem">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">N (texto)</div>
+        <div class="stat-value" id="valN">—</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-label">M (padrão)</div>
+        <div class="stat-value" id="valM">—</div>
+      </div>
+    </div>
+    <div class="positions-block" id="posBlock">
+      <div class="pos-label">Posições (índices)</div>
+      <div class="positions-list" id="posList"></div>
+      <div class="truncated-note" id="truncNote" style="display:none"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Drag & drop
+  const zone = document.getElementById('uploadZone');
+  const fileInput = document.getElementById('fileInput');
+  const fileName = document.getElementById('fileName');
+
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('dragover');
+    if (e.dataTransfer.files[0]) {
+      fileInput.files = e.dataTransfer.files;
+      updateFileName();
+    }
+  });
+  fileInput.addEventListener('change', updateFileName);
+
+  function updateFileName() {
+    const f = fileInput.files[0];
+    if (f) {
+      fileName.textContent = `✓ ${f.name} (${(f.size/1024).toFixed(1)} KB)`;
+      zone.classList.add('has-file');
+    }
+  }
+
+  async function doSearch() {
+    const file = fileInput.files[0];
+    const pattern = document.getElementById('patternInput').value.trim();
+    const algorithm = document.getElementById('algorithmSelect').value;
+    const errorBox = document.getElementById('errorBox');
+    const btn = document.getElementById('searchBtn');
+
+    errorBox.style.display = 'none';
+    document.getElementById('results').style.display = 'none';
+
+    if (!file) { showError('Selecione um arquivo .txt'); return; }
+    if (!pattern) { showError('Informe o termo a pesquisar.'); return; }
+
+    btn.disabled = true;
+    btn.classList.add('loading');
+
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('pattern', pattern);
+    fd.append('algorithm', algorithm);
+
+    try {
+      const res = await fetch('/api/search', { method: 'POST', body: fd });
+      const data = await res.json();
+
+      if (!res.ok) { showError(data.error || 'Erro desconhecido.'); return; }
+
+      showResults(data);
+    } catch (e) {
+      showError('Falha na requisição: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.classList.remove('loading');
+    }
+  }
+
+  function showError(msg) {
+    const box = document.getElementById('errorBox');
+    box.textContent = '⚠ ' + msg;
+    box.style.display = 'block';
+  }
+
+  function showResults(data) {
+    document.getElementById('results').style.display = 'block';
+
+    const statFound = document.getElementById('statFound');
+    const valFound = document.getElementById('valFound');
+    valFound.textContent = data.found ? 'SIM' : 'NÃO';
+    statFound.className = 'stat-box ' + (data.found ? 'found-yes' : 'found-no');
+
+    document.getElementById('valOcc').textContent = data.occurrences.toLocaleString('pt-BR');
+    document.getElementById('valTime').textContent = data.duration_ms.toFixed(4);
+    document.getElementById('valAlgo').textContent = data.algorithm;
+    document.getElementById('valN').textContent = data.text_size.toLocaleString('pt-BR');
+    document.getElementById('valM').textContent = data.pattern_size;
+
+    const list = document.getElementById('posList');
+    list.innerHTML = '';
+    if (data.positions.length === 0) {
+      list.innerHTML = '<span style="color:var(--muted);font-size:0.8rem">Nenhuma ocorrência encontrada.</span>';
+    } else {
+      data.positions.forEach(p => {
+        const span = document.createElement('span');
+        span.className = 'pos-badge';
+        span.textContent = p;
+        list.appendChild(span);
+      });
+    }
+
+    const truncNote = document.getElementById('truncNote');
+    if (data.positions_truncated) {
+      truncNote.style.display = 'block';
+      truncNote.textContent = `Exibindo as primeiras 200 de ${data.occurrences.toLocaleString('pt-BR')} ocorrências.`;
+    } else {
+      truncNote.style.display = 'none';
+    }
+
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+</body>
+</html>
