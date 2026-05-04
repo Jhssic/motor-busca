@@ -1,7 +1,45 @@
 # Motor de Busca em Documentos
 
-Trabalho Prático — Algoritmos Avançados  
+**Trabalho Prático — Algoritmos Avançados**  
 Prof. Diogo Vinicius Winck — Católica de Santa Catarina
+
+Aplicação web para pesquisa de padrões em documentos de texto e PDF, com quatro algoritmos de substring search, instrumentação OpenTelemetry completa (traces, métricas e logs) e dashboard Grafana + Prometheus via docker-compose.
+
+---
+
+## Sumário
+
+1. [Funcionalidades](#funcionalidades)
+2. [Algoritmos Implementados](#algoritmos-implementados)
+3. [Estrutura do Projeto](#estrutura-do-projeto)
+4. [Instalação e Execução](#instalação-e-execução)
+5. [Observabilidade — OpenTelemetry](#observabilidade--opentelemetry)
+6. [Dashboard — Grafana + Prometheus](#dashboard--grafana--prometheus)
+7. [API](#api)
+8. [Uso de IA](#uso-de-ia)
+
+---
+
+## Funcionalidades
+
+- Upload de arquivos `.txt` e `.pdf` (até 20 MB)
+- Seleção do algoritmo via dropdown em tempo de execução
+- Exibe: encontrado?, número de ocorrências, posições (índices), tempo em ms, tamanho N e M
+- Telemetria completa com OpenTelemetry: traces, métricas e logs
+- Dashboard Grafana pré-configurado com Prometheus via docker-compose
+
+---
+
+## Algoritmos Implementados
+
+| Algoritmo | Complexidade | Estratégia |
+|-----------|-------------|------------|
+| Força Bruta | O(N·M) pior caso | Comparação caractere a caractere |
+| Rabin-Karp | O(N+M) esperado | Hash rolante |
+| KMP | O(N+M) garantido | Tabela de falhas (prefix function) |
+| Boyer-Moore | O(N/M) melhor caso | Bad character + Good suffix |
+
+Todos implementados sem uso de `indexOf()`, `contains()` ou similares como lógica central, seguindo o **Strategy Pattern** com interface comum `SearchStrategy`.
 
 ---
 
@@ -9,92 +47,179 @@ Prof. Diogo Vinicius Winck — Católica de Santa Catarina
 
 ```
 motor-busca/
-├── app.py                    # Servidor Flask (rotas e API)
+├── app.py                          # Servidor Flask com OpenTelemetry
 ├── requirements.txt
+├── docker-compose.yml              # Stack de observabilidade
+├── algorithms/
+│   ├── __init__.py
+│   ├── base.py                     # SearchStrategy + SearchResult
+│   ├── registry.py                 # Registro dos algoritmos
+│   ├── forca_bruta.py
+│   ├── rabin_karp.py
+│   ├── kmp.py
+│   └── boyer_moore.py
 ├── templates/
-│   └── index.html            # Interface web
-└── algorithms/
-    ├── __init__.py
-    ├── base.py               # SearchStrategy (interface) + SearchResult
-    ├── registry.py           # ← ADICIONE SEUS ALGORITMOS AQUI
-    ├── forca_bruta.py        # ✅ Implementado
-    ├── rabin_karp.py         # ✅ Implementado
-    ├── kmp.py                # 🔲 A colega implementa
-    └── boyer_moore.py        # 🔲 A colega implementa
+│   └── index.html
+└── monitoring/
+    ├── otel-collector.yaml
+    ├── prometheus.yml
+    ├── tempo.yaml
+    └── grafana/
+        └── provisioning/
+            ├── datasources/datasources.yaml
+            └── dashboards/
+                ├── dashboards.yaml
+                └── motor-busca.json
 ```
 
 ---
 
-## Como Rodar
+## Instalação e Execução
+
+### Pré-requisitos
+
+- Python 3.10+
+- pip
+- Docker (apenas para o dashboard)
+
+### 1. Clonar e instalar dependências
 
 ```bash
-# 1. Instalar dependências
+git clone https://github.com/Jhssic/motor-busca
+cd motor-busca
 pip install -r requirements.txt
-
-# 2. Rodar o servidor
-python app.py
-
-# 3. Acessar no navegador
-http://localhost:5000
+pip install pymupdf   # suporte a PDF
 ```
+
+### 2. Rodar a aplicação
+
+```bash
+python app.py
+```
+
+Acesse em: **http://localhost:5000**
+
+> A aplicação sobe normalmente mesmo sem o Docker rodando. Os exportadores OTEL falham silenciosamente sem quebrar a app.
 
 ---
 
-## Como a Colega Adiciona os Algoritmos
+## Observabilidade — OpenTelemetry
 
-### 1. Criar o arquivo `algorithms/kmp.py`
+A aplicação é instrumentada com OpenTelemetry SDK para Python, registrando **traces**, **métricas** e **logs** a cada operação de busca.
 
-```python
-from typing import List
-from .base import SearchStrategy
+### Traces
 
-class KMP(SearchStrategy):
-    def name(self) -> str:
-        return "KMP"
+Cada requisição de busca gera um trace com 3 spans:
 
-    def _search(self, text: str, pattern: str) -> List[int]:
-        # Implementação aqui
-        pass
+| Span | O que registra |
+|------|----------------|
+| `load_document` | Leitura e extração do arquivo (txt ou pdf), tamanho N |
+| `execute_algorithm` | Execução do algoritmo escolhido, tempo real |
+| `format_result` | Formatação da resposta antes de retornar ao cliente |
+
+### Métricas
+
+| Métrica | Tipo | Labels |
+|---------|------|--------|
+| `search_duration_ms` | Histogram | algorithm, found |
+| `search_requests_total` | Counter | algorithm, found |
+| `document_size_chars` | Histogram | algorithm |
+
+### Logs
+
+- **Ao iniciar a busca:** algoritmo utilizado, N e M
+- **Ao finalizar:** tempo de execução e número de ocorrências
+
+Os dados são exportados via **OTLP gRPC** para o OpenTelemetry Collector (porta 4317).
+
+---
+
+## Dashboard — Grafana + Prometheus
+
+### Subir a stack
+
+```bash
+docker compose up -d
 ```
 
-### 2. Registrar em `algorithms/registry.py`
+Isso sobe 4 serviços:
 
-Descomente as linhas já preparadas:
+| Serviço | Porta | Função |
+|---------|-------|--------|
+| OTEL Collector | 4317 | Recebe traces/métricas/logs da app |
+| Prometheus | 9090 | Coleta métricas do collector |
+| Grafana Tempo | 3200 | Armazena e consulta traces |
+| Grafana | 3000 | Dashboard visual |
 
-```python
-from .kmp import KMP
-from .boyer_moore import BoyerMoore
+### Rodar a app apontando para o collector
 
-ALGORITHMS = {
-    "forca_bruta": ForcaBruta(),
-    "rabin_karp": RabinKarp(),
-    "kmp": KMP(),           # ← descomentar
-    "boyer_moore": BoyerMoore(),  # ← descomentar
-}
+**Linux/Mac:**
+```bash
+OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 python app.py
 ```
 
-O dropdown na interface vai aparecer automaticamente. ✅
+**Windows (PowerShell):**
+```powershell
+$env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
+python app.py
+```
+
+### Acessar o dashboard
+
+1. Abra **http://localhost:3000**
+2. Login: `admin` / `admin`
+3. Vá em **Dashboards → Motor de Busca → Motor de Busca — Observabilidade**
+
+O dashboard exibe automaticamente:
+- Total de buscas por algoritmo
+- Taxa de buscas por minuto
+- Tempo médio de execução por algoritmo (ms)
+- Percentis P50, P95 e P99 de duração
+- Distribuição de tamanho dos documentos
+- Proporção encontrado vs não encontrado
+
+### Traces no Grafana Tempo
+
+Em **Explore → Tempo**, filtre por `service.name = motor-busca` para ver os traces de cada busca com os 3 spans detalhados.
+
+### Derrubar a stack
+
+```bash
+docker compose down -v
+```
 
 ---
 
 ## API
 
 ### `GET /api/algorithms`
+
 Retorna lista de algoritmos disponíveis.
 
+```json
+[
+  { "key": "forca_bruta", "name": "Força Bruta" },
+  { "key": "rabin_karp",  "name": "Rabin-Karp"  },
+  { "key": "kmp",         "name": "KMP"          },
+  { "key": "boyer_moore", "name": "Boyer-Moore"  }
+]
+```
+
 ### `POST /api/search`
+
 **Form data:**
-- `file` — arquivo `.txt`
+- `file` — arquivo `.txt` ou `.pdf`
 - `pattern` — termo a buscar
-- `algorithm` — chave do algoritmo (`forca_bruta`, `rabin_karp`, `kmp`, `boyer_moore`)
+- `algorithm` — chave do algoritmo
 
 **Resposta:**
+
 ```json
 {
-  "algorithm": "Força Bruta",
+  "algorithm": "KMP",
   "found": true,
   "occurrences": 42,
-  "positions": [10, 55, 100, ...],
+  "positions": [10, 55, 100],
   "positions_truncated": false,
   "duration_ms": 12.3456,
   "text_size": 4000000,
@@ -104,17 +229,18 @@ Retorna lista de algoritmos disponíveis.
 
 ---
 
-## Algoritmos Implementados
+## Uso de IA
 
-| Algoritmo | Complexidade | Arquivo |
-|---|---|---|
-| Força Bruta | O(N·M) pior caso | `forca_bruta.py` |
-| Rabin-Karp | O(N+M) esperado | `rabin_karp.py` |
-| KMP | O(N+M) garantido | `kmp.py` *(colega)* |
-| Boyer-Moore | O(N/M) melhor caso | `boyer_moore.py` *(colega)* |
+**Prompts principais utilizados:**
 
----
+1. *"Implemente KMP em Python seguindo a interface SearchStrategy do projeto, com explicação da tabela de falhas"*
+2. *"Implemente Boyer-Moore com Bad Character e Good Suffix, sem usar indexOf"*
+3. *"Configure OpenTelemetry no Flask com traces (3 spans por requisição), métricas histogram/counter e logs via OTLP gRPC"*
+4. *"Crie um docker-compose com OTEL Collector, Prometheus, Grafana Tempo e Grafana com datasources e dashboard pré-provisionados"*
+5. *"Adicione suporte a extração de texto de PDF usando PyMuPDF antes de passar para o algoritmo de busca"*
 
-## Próximos Passos (OpenTelemetry)
+**O que a IA produziu:** estrutura dos algoritmos KMP e Boyer-Moore, configuração YAML completa da stack de observabilidade, integração do LoggingHandler OTEL com o logging padrão do Python, extração de texto de PDF, dashboard Grafana em JSON.
 
-A instrumentação com OpenTelemetry (seção 5 do enunciado) pode ser adicionada em `app.py` na rota `/api/search`, após o `result = strategy.search(...)`.
+**O que foi ajustado manualmente:** nomes das métricas alinhados com o prefixo do Prometheus, portas sem conflito entre Tempo e Collector, passagem da variável `algorithms` para o template Jinja2, testes com os documentos do enunciado.
+
+**Onde a IA foi genérica:** a tabela de good suffix do Boyer-Moore precisou de revisão — a versão inicial não implementava a fase 2 do preenchimento dos shifts restantes via border array.
