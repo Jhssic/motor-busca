@@ -1,17 +1,35 @@
 from flask import Flask, request, jsonify, render_template
 from werkzeug.utils import secure_filename
 import os
+import io
 
 from algorithms.registry import get_algorithm, list_algorithms
 
 app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB máximo
-ALLOWED_EXTENSIONS = {"txt"}
+app.config["MAX_CONTENT_LENGTH"] = 20 * 1024 * 1024  # 20 MB máximo
+ALLOWED_EXTENSIONS = {"txt", "pdf"}
 
 
 def allowed_file(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
 
+def extract_text(file) -> str:
+    filename = file.filename.lower()
+
+    if filename.endswith(".pdf"):
+        try:
+            from pypdf import PdfReader
+            reader = PdfReader(io.BytesIO(file.read()))
+            pages = [page.extract_text() or "" for page in reader.pages]
+            return "\n".join(pages)
+        except Exception as e:
+            raise ValueError(f"Erro ao ler PDF: {str(e)}")
+    else:
+        raw = file.read()
+        try:
+            return raw.decode("utf-8")
+        except UnicodeDecodeError:
+            return raw.decode("latin-1")
 
 @app.route("/")
 def index():
@@ -36,7 +54,7 @@ def api_search():
 
     # Leitura do texto
     try:
-        text = file.read().decode("utf-8")
+        text = extract_text(file)
     except UnicodeDecodeError:
         try:
             file.seek(0)
