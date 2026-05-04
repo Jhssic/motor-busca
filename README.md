@@ -3,6 +3,11 @@
 **Trabalho Prático — Algoritmos Avançados**  
 Prof. Diogo Vinicius Winck — Católica de Santa Catarina
 
+Alunos:
+Jhessica Alves
+Laíza Silva
+Victor Moy
+
 Aplicação web para pesquisa de padrões em documentos de texto e PDF, com quatro algoritmos de substring search, instrumentação OpenTelemetry completa (traces, métricas e logs) e dashboard Grafana + Prometheus via docker-compose.
 
 ---
