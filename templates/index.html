@@ -31,7 +31,6 @@
       padding: 2rem 1rem;
     }
 
-    /* Grid de fundo */
     body::before {
       content: '';
       position: fixed;
@@ -52,7 +51,6 @@
       margin: 0 auto;
     }
 
-    /* Header */
     header {
       margin-bottom: 2.5rem;
       border-left: 3px solid var(--accent);
@@ -78,7 +76,6 @@
       margin-top: 0.4rem;
     }
 
-    /* Card */
     .card {
       background: var(--surface);
       border: 1px solid var(--border);
@@ -104,7 +101,6 @@
       background: var(--border);
     }
 
-    /* Upload zone */
     .upload-zone {
       border: 2px dashed var(--border);
       border-radius: 8px;
@@ -145,7 +141,6 @@
       margin-top: 0.5rem;
     }
 
-    /* Form fields */
     label {
       display: block;
       font-size: 0.82rem;
@@ -176,7 +171,6 @@
     }
     @media (max-width: 540px) { .form-row { grid-template-columns: 1fr; } }
 
-    /* Button */
     .btn {
       display: flex;
       align-items: center;
@@ -211,7 +205,6 @@
     .btn.loading .btn-text { opacity: 0.6; }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Results */
     #results { display: none; }
 
     .result-grid {
@@ -279,7 +272,6 @@
       font-style: italic;
     }
 
-    /* Error */
     .error-box {
       background: rgba(245, 101, 101, 0.08);
       border: 1px solid rgba(245, 101, 101, 0.3);
@@ -288,6 +280,7 @@
       color: var(--danger);
       font-size: 0.85rem;
       display: none;
+      margin-bottom: 0.75rem;
     }
   </style>
 </head>
@@ -296,7 +289,7 @@
   <header>
     <div class="tag">Algoritmos Avançados — Prof. Diogo Winck</div>
     <h1>Motor de Busca</h1>
-    <p>Substring search com Força Bruta e Rabin-Karp · Strategy Pattern</p>
+    <p>Substring search com Força Bruta, Rabin-Karp, KMP e Boyer-Moore · Strategy Pattern</p>
   </header>
 
   <!-- Upload -->
@@ -372,7 +365,6 @@
 </div>
 
 <script>
-  // Drag & drop
   const zone = document.getElementById('uploadZone');
   const fileInput = document.getElementById('fileInput');
   const fileName = document.getElementById('fileName');
@@ -421,9 +413,7 @@
     try {
       const res = await fetch('/api/search', { method: 'POST', body: fd });
       const data = await res.json();
-
       if (!res.ok) { showError(data.error || 'Erro desconhecido.'); return; }
-
       showResults(data);
     } catch (e) {
       showError('Falha na requisição: ' + e.message);
@@ -469,7 +459,7 @@
     const truncNote = document.getElementById('truncNote');
     if (data.positions_truncated) {
       truncNote.style.display = 'block';
-      truncNote.textContent = `Exibindo as primeiras 200 de ${data.occurrences.toLocaleString('pt-BR')} ocorrências.`;
+      truncNote.textContent = `Exibindo as primeiras 500 de ${data.occurrences.toLocaleString('pt-BR')} ocorrências.`;
     } else {
       truncNote.style.display = 'none';
     }
