@@ -1,15 +1,4 @@
-version: "3.9"
-
-# Motor de Busca — Stack de Observabilidade
-# Serviços:
-#   otel-collector  → recebe traces/metrics/logs da app via gRPC :4317
-#   prometheus      → scrape de métricas do collector  :9090
-#   tempo           → armazena traces (backend)         :3200
-#   grafana         → dashboard visual                  :3000
-
 services:
-
-  # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.99.0
     container_name: otel-collector
@@ -17,14 +6,13 @@ services:
     volumes:
       - ./monitoring/otel-collector.yaml:/etc/otel/config.yaml:ro
     ports:
-      - "4317:4317"   # gRPC — usado pela aplicação Flask
-      - "4318:4318"   # HTTP (opcional)
-      - "8888:8888"   # métricas internas do collector
-      - "8889:8889"   # métricas expostas para o Prometheus
+      - "4317:4317"   # gRPC - Recebe da App
+      - "4318:4318"   # HTTP
+      - "8888:8888"   # Métricas internas
+      - "8889:8889"   # Prometheus Exporter
     networks:
       - monitoring
 
-  # Prometheus
   prometheus:
     image: prom/prometheus:v2.51.2
     container_name: prometheus
@@ -33,6 +21,7 @@ services:
       - "--storage.tsdb.path=/prometheus"
       - "--web.enable-lifecycle"
     volumes:
+      # Caminho direto para o arquivo para evitar erro de targets vazios
       - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
@@ -42,7 +31,6 @@ services:
     depends_on:
       - otel-collector
 
-  # Grafana Tempo (backend de traces) 
   tempo:
     image: grafana/tempo:2.4.1
     container_name: tempo
@@ -51,12 +39,10 @@ services:
       - ./monitoring/tempo.yaml:/etc/tempo.yaml:ro
       - tempo_data:/tmp/tempo
     ports:
-      - "3200:3200"   # API HTTP do Tempo
-      - "4319:4317"   # gRPC do Tempo (evita conflito com o collector)
+      - "3200:3200"
     networks:
       - monitoring
 
-  # Grafana 
   grafana:
     image: grafana/grafana:10.4.2
     container_name: grafana
@@ -64,7 +50,6 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
-      - GF_FEATURE_TOGGLES_ENABLE=traceqlEditor
     volumes:
       - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
       - grafana_data:/var/lib/grafana
