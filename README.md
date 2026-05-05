@@ -54,7 +54,8 @@ Todos implementados sem uso de `indexOf()`, `contains()` ou similares como lógi
 motor-busca/
 ├── app.py                          # Servidor Flask com OpenTelemetry
 ├── requirements.txt
-├── docker-compose.yml              # Stack de observabilidade
+├── Dockerfile                      # Imagem da aplicação
+├── docker-compose.yml              # App + stack de observabilidade completa
 ├── algorithms/
 │   ├── __init__.py
 │   ├── base.py                     # SearchStrategy + SearchResult
@@ -83,28 +84,41 @@ motor-busca/
 
 ### Pré-requisitos
 
-- Python 3.10+
-- pip
-- Docker (apenas para o dashboard)
+- Docker e Docker Compose
 
-### 1. Clonar e instalar dependências
+### Opção 1 — Tudo via Docker (recomendado)
+
+Sobe a aplicação + toda a stack de observabilidade com um único comando:
+
+```bash
+docker compose up --build
+```
+
+| Serviço | URL | Função |
+|---------|-----|--------|
+| App Flask | http://localhost:5000 | Interface de busca |
+| Grafana | http://localhost:3000 | Dashboard (admin/admin) |
+| Prometheus | http://localhost:9090 | Métricas |
+| OTEL Collector | localhost:4317 | Recebe telemetria |
+| Grafana Tempo | localhost:3200 | Traces |
+
+Para encerrar:
+```bash
+docker compose down -v
+```
+
+### Opção 2 — Execução local (sem Docker)
 
 ```bash
 git clone https://github.com/Jhssic/motor-busca
 cd motor-busca
 pip install -r requirements.txt
-pip install pymupdf   # suporte a PDF
-```
-
-### 2. Rodar a aplicação
-
-```bash
 python app.py
 ```
 
 Acesse em: **http://localhost:5000**
 
-> A aplicação sobe normalmente mesmo sem o Docker rodando. Os exportadores OTEL falham silenciosamente sem quebrar a app.
+> Sem Docker, a app funciona normalmente. Os exportadores OTEL falham silenciosamente sem quebrar a aplicação.
 
 ---
 
@@ -141,57 +155,20 @@ Os dados são exportados via **OTLP gRPC** para o OpenTelemetry Collector (porta
 
 ## Dashboard — Grafana + Prometheus
 
-### Subir a stack
+Após subir com `docker compose up --build`, acesse **http://localhost:3000** (admin/admin).
 
-```bash
-docker compose up -d
-```
-
-Isso sobe 4 serviços:
-
-| Serviço | Porta | Função |
-|---------|-------|--------|
-| OTEL Collector | 4317 | Recebe traces/métricas/logs da app |
-| Prometheus | 9090 | Coleta métricas do collector |
-| Grafana Tempo | 3200 | Armazena e consulta traces |
-| Grafana | 3000 | Dashboard visual |
-
-### Rodar a app apontando para o collector
-
-**Linux/Mac:**
-```bash
-OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317 python app.py
-```
-
-**Windows (PowerShell):**
-```powershell
-$env:OTEL_EXPORTER_OTLP_ENDPOINT="http://localhost:4317"
-python app.py
-```
-
-### Acessar o dashboard
-
-1. Abra **http://localhost:3000**
-2. Login: `admin` / `admin`
-3. Vá em **Dashboards → Motor de Busca → Motor de Busca — Observabilidade**
-
-O dashboard exibe automaticamente:
+O dashboard **Motor de Busca — Observabilidade** exibe automaticamente:
 - Total de buscas por algoritmo
 - Taxa de buscas por minuto
 - Tempo médio de execução por algoritmo (ms)
 - Percentis P50, P95 e P99 de duração
-- Distribuição de tamanho dos documentos
+- Comparação visual entre algoritmos (barchart)
 - Proporção encontrado vs não encontrado
+- Taxa de sucesso (%)
 
 ### Traces no Grafana Tempo
 
 Em **Explore → Tempo**, filtre por `service.name = motor-busca` para ver os traces de cada busca com os 3 spans detalhados.
-
-### Derrubar a stack
-
-```bash
-docker compose down -v
-```
 
 ---
 
