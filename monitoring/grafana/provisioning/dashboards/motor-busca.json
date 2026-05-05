@@ -1,0 +1,201 @@
+{
+  "title": "Motor de Busca — Observabilidade",
+  "uid": "motor-busca-otel",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "10s",
+  "time": { "from": "now-30m", "to": "now" },
+  "timezone": "browser",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Total de Buscas por Algoritmo",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["sum"] },
+        "displayMode": "gradient"
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (algorithm) (motor_busca_search_requests_total)",
+          "legendFormat": "{{algorithm}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Taxa de Buscas por Minuto",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (algorithm) (rate(motor_busca_search_requests_total[1m])) * 60",
+          "legendFormat": "{{algorithm}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Tempo Médio de Busca por Algoritmo (ms)",
+      "type": "bargauge",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["mean"] },
+        "displayMode": "gradient",
+        "fieldOptions": { "calcs": ["mean"] }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 10 },
+              { "color": "red", "value": 100 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (algorithm) (rate(motor_busca_search_duration_ms_sum[5m])) / sum by (algorithm) (rate(motor_busca_search_duration_ms_count[5m]))",
+          "legendFormat": "{{algorithm}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Percentis de Duração por Algoritmo (ms)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms" }
+      },
+      "options": {
+        "tooltip": { "mode": "multi" },
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, sum by (algorithm, le) (rate(motor_busca_search_duration_ms_bucket[5m])))",
+          "legendFormat": "P50 {{algorithm}}"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.95, sum by (algorithm, le) (rate(motor_busca_search_duration_ms_bucket[5m])))",
+          "legendFormat": "P95 {{algorithm}}"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.99, sum by (algorithm, le) (rate(motor_busca_search_duration_ms_bucket[5m])))",
+          "legendFormat": "P99 {{algorithm}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Comparação Visual: Duração Média por Algoritmo",
+      "type": "barchart",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": { "unit": "ms" }
+      },
+      "options": {
+        "orientation": "vertical",
+        "legend": { "displayMode": "list", "placement": "bottom" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (algorithm) (rate(motor_busca_search_duration_ms_sum[10m])) / sum by (algorithm) (rate(motor_busca_search_duration_ms_count[10m]))",
+          "legendFormat": "{{algorithm}}",
+          "instant": true
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Encontrado vs Não Encontrado",
+      "type": "piechart",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "options": {
+        "pieType": "donut",
+        "legend": { "displayMode": "list", "placement": "right" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum by (found) (motor_busca_search_requests_total)",
+          "legendFormat": "{{found}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Tamanho Médio dos Documentos (chars)",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 24, "w": 8, "h": 4 },
+      "fieldConfig": {
+        "defaults": { "unit": "short" }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(rate(motor_busca_document_size_chars_sum[5m])) / sum(rate(motor_busca_document_size_chars_count[5m]))",
+          "legendFormat": "Média"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Total de Buscas",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 24, "w": 8, "h": 4 },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(motor_busca_search_requests_total)",
+          "legendFormat": "Total"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Taxa de Sucesso (%)",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 24, "w": 8, "h": 4 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 30 },
+              { "color": "green", "value": 60 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "sum(motor_busca_search_requests_total{found=\"true\"}) / sum(motor_busca_search_requests_total) * 100",
+          "legendFormat": "Encontrado"
+        }
+      ]
+    }
+  ]
+}
